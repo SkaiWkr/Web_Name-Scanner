@@ -44,12 +44,6 @@ If either value is missing, SiteGuard logs that Google Custom Search is skipped 
 python -m siteguard --name "BrandName" --output report.json
 ```
 
-For a faster first pass or when a source is slow, cap the scan size explicitly:
-
-```bash
-python -m siteguard --name "BrandName" --output report.json --max-candidates 50 --max-permutations 25
-```
-
 If installed as a package wrapper, expose `siteguard.cli:main` as the `siteguard` console script and run:
 
 ```bash
@@ -65,7 +59,7 @@ SiteGuard uses multiple discovery vectors:
 3. **DNS brute force** of configured words such as `login`, `secure`, `verify`, `account`, `portal`, and `my` against the real domain and generated permutations.
 4. **Optional Google Custom Search** to catch brand mentions in page content or titles where hostnames have no obvious similarity.
 
-Every outbound operation is bounded by configured timeouts, rate limits, retries, and backoff. Failures are logged and attached to findings where relevant; a single failed lookup does not stop the batch. The default scan is intentionally capped by `scan.max_candidates`, `scan.max_permutations`, and `scan.max_dns_bruteforce_parents` so a slow CT endpoint, DNS resolver, or WHOIS server does not make the CLI appear stuck. Progress logs announce each discovery source and each enrichment candidate.
+Every outbound operation is bounded by configured timeouts, rate limits, retries, and backoff. Failures are logged and attached to findings where relevant; a single failed lookup does not stop the batch.
 
 ## Scoring logic
 

@@ -24,17 +24,12 @@ scoring:
     cert_transparency_related: 50
   content_keyword_score: 100
   missing_data_score: 50
-scan:
-  max_permutations: 75
-  max_candidates: 150
-  max_dns_bruteforce_parents: 25
-  collect_whois_for_unresolved: false
 network:
-  timeout_seconds: 4
+  timeout_seconds: 8
   retries: 3
   backoff_factor: 0.8
   rate_limit_seconds:
-    crtsh: 1.0
+    crtsh: 2.0
     dns: 0.05
     google: 1.0
     http: 0.2

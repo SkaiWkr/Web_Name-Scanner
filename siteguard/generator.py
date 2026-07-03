@@ -46,26 +46,14 @@ def generate_permutations(name: str, limit: int = 500) -> list[str]:
     return sorted(domains)[:limit]
 
 
-def generate_candidates(
-    name: str,
-    config: dict[str, Any],
-    limit: int = 500,
-    max_candidates: int | None = None,
-) -> list[Candidate]:
-    """Generate domain and common subdomain candidates from permutations up to a scan cap."""
+def generate_candidates(name: str, config: dict[str, Any], limit: int = 500) -> list[Candidate]:
+    """Generate domain and common subdomain candidates from permutations."""
     subdomains = get_subdomain_words(config)
     permutations = generate_permutations(name, limit=limit)
     candidates: dict[str, Candidate] = {}
-    cap = max_candidates if max_candidates is not None else int(config.get("scan", {}).get("max_candidates", 150))
     for domain in permutations:
         candidates[domain] = Candidate(hostname=domain, source="typosquat_permutation", parent_domain=domain)
-        if len(candidates) >= cap:
-            break
         for word in subdomains:
             host = f"{word}.{domain}"
             candidates[host] = Candidate(hostname=host, source="dns_bruteforce", parent_domain=domain)
-            if len(candidates) >= cap:
-                break
-        if len(candidates) >= cap:
-            break
     return list(candidates.values())

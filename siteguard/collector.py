@@ -34,17 +34,10 @@ class Collector:
         self.resolver = dns.resolver.Resolver()
         self.resolver.lifetime = self.timeout
         self.resolver.timeout = self.timeout
-        self.collect_whois_for_unresolved = bool(config.get("scan", {}).get("collect_whois_for_unresolved", False))
 
     def collect_many(self, candidates: list[Candidate]) -> list[Finding]:
         """Collect enrichment data for many candidates without batch failure."""
-        findings: list[Finding] = []
-        total = len(candidates)
-        LOGGER.info("Collecting enrichment for %s candidates", total)
-        for index, candidate in enumerate(candidates, start=1):
-            LOGGER.info("Collecting candidate %s/%s: %s", index, total, candidate.hostname)
-            findings.append(self.collect(candidate))
-        return findings
+        return [self.collect(candidate) for candidate in candidates]
 
     def collect(self, candidate: Candidate) -> Finding:
         """Collect enrichment data for one candidate."""
@@ -58,13 +51,10 @@ class Collector:
             finding.resolved_ips = self.resolve_dns(candidate.hostname)
         except Exception as exc:  # noqa: BLE001
             finding.errors.append(f"dns: {exc}")
-        if finding.resolved_ips or self.collect_whois_for_unresolved:
-            try:
-                finding.registrar, finding.creation_date = self.lookup_whois(candidate.hostname)
-            except Exception as exc:  # noqa: BLE001
-                finding.errors.append(f"whois: {exc}")
-        else:
-            LOGGER.debug("Skipping WHOIS for unresolved host: %s", candidate.hostname)
+        try:
+            finding.registrar, finding.creation_date = self.lookup_whois(candidate.hostname)
+        except Exception as exc:  # noqa: BLE001
+            finding.errors.append(f"whois: {exc}")
         if finding.resolved_ips:
             try:
                 finding.ssl_issuer = self.get_ssl_issuer(candidate.hostname)

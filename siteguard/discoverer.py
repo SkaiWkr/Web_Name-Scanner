@@ -36,30 +36,13 @@ class Discoverer:
         self.resolver = dns.resolver.Resolver()
         self.resolver.lifetime = self.timeout
         self.resolver.timeout = self.timeout
-        scan = config.get("scan", {})
-        self.max_permutations = int(scan.get("max_permutations", 75))
-        self.max_candidates = int(scan.get("max_candidates", 150))
-        self.max_dns_bruteforce_parents = int(scan.get("max_dns_bruteforce_parents", 25))
 
     def discover(self, name: str) -> list[Candidate]:
         """Run all configured discovery sources and merge candidates by hostname."""
         merged: dict[str, Candidate] = {}
-        LOGGER.info(
-            "Generating up to %s candidates from up to %s permutations",
-            self.max_candidates,
-            self.max_permutations,
-        )
-        for candidate in generate_candidates(
-            name,
-            self.config,
-            limit=self.max_permutations,
-            max_candidates=self.max_candidates,
-        ):
+        for candidate in generate_candidates(name, self.config):
             merged[candidate.hostname] = candidate
-        LOGGER.info("Generated %s permutation/subdomain candidates", len(merged))
         for source_func in (self.search_crtsh, self.bruteforce_dns, self.search_google):
-            LOGGER.info("Starting discovery source: %s", source_func.__name__)
-            before = len(merged)
             try:
                 for candidate in source_func(name):
                     existing = merged.get(candidate.hostname)
@@ -67,13 +50,9 @@ class Discoverer:
                         existing.metadata.setdefault("sources", [existing.source]).append(candidate.source)
                     else:
                         merged[candidate.hostname] = candidate
-                    if len(merged) >= self.max_candidates:
-                        LOGGER.info("Candidate cap of %s reached; stopping merge for %s", self.max_candidates, source_func.__name__)
-                        break
             except Exception as exc:  # noqa: BLE001 - one source must not crash scan.
                 LOGGER.warning("discovery source %s failed: %s", source_func.__name__, exc)
-            LOGGER.info("Finished %s; added %s candidates", source_func.__name__, len(merged) - before)
-        return list(merged.values())[: self.max_candidates]
+        return list(merged.values())
 
     def search_crtsh(self, name: str) -> list[Candidate]:
         """Search crt.sh JSON API for names containing the brand/person string."""
@@ -108,20 +87,8 @@ class Discoverer:
         """Resolve configured subdomains against generated parent domains."""
         discovered: list[Candidate] = []
         words = get_subdomain_words(self.config)
-        parents = [
-            candidate.parent_domain
-            for candidate in generate_candidates(
-                name,
-                self.config,
-                limit=self.max_permutations,
-                max_candidates=self.max_dns_bruteforce_parents,
-            )
-            if candidate.parent_domain
-        ]
-        parents = sorted(set(parents))[: self.max_dns_bruteforce_parents]
-        LOGGER.info("DNS brute-force checking %s parent domains with %s words", len(parents), len(words))
-        for parent_index, parent in enumerate(parents, start=1):
-            LOGGER.info("DNS brute-force parent %s/%s: %s", parent_index, len(parents), parent)
+        parents = {candidate.parent_domain for candidate in generate_candidates(name, self.config) if candidate.parent_domain}
+        for parent in parents:
             for word in words:
                 host = f"{word}.{parent}"
                 self.dns_limiter.wait()
